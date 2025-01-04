@@ -1,17 +1,14 @@
 package cn.ksmcbrigade.bsq;
 
-import cn.ksmcbrigade.bsq.screen.QuietScreen;
+import cn.ksmcbrigade.bsq.network.BlackMessage;
+import cn.ksmcbrigade.bsq.network.ClientHandler;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.CommonComponents;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.api.distmarker.Dist;
@@ -37,24 +34,8 @@ public class BlackScreenQuiet {
     public BlackScreenQuiet() {
         MinecraftForge.EVENT_BUS.register(this);
 
-        CHANNEL.registerMessage(0,BlackMessage.class,BlackMessage::encode,BlackMessage::decode,(msg,context)->{
-            DistExecutor.unsafeRunWhenOn(Dist.CLIENT,()->()->{
-                if(!msg.data.has("end")){
-                    try {
-                        Minecraft.getInstance().screen = new QuietScreen(msg.data);
-                    } catch (NoSuchFieldException e) {
-                        if (Minecraft.getInstance().player != null) {
-                            Minecraft.getInstance().player.displayClientMessage(Component.literal("Can't open the quiet screen."),false);
-                        }
-                        e.printStackTrace();
-                    }
-                }
-                else{
-                    if(Minecraft.getInstance().screen instanceof QuietScreen quietScreen){
-                        quietScreen.end();
-                    }
-                }
-            });
+        CHANNEL.registerMessage(0, BlackMessage.class,BlackMessage::encode,BlackMessage::decode,(msg, context)->{
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT,()->()-> ClientHandler.handle(msg,context));
             context.get().setPacketHandled(true);
         });
 
@@ -121,15 +102,4 @@ public class BlackScreenQuiet {
             return 0;
         })));
     }
-
-    public record BlackMessage(JsonObject data) {
-
-        public static void encode(BlackMessage MSG, FriendlyByteBuf buf) {
-                buf.writeUtf(MSG.data.toString());
-            }
-
-            public static BlackMessage decode(FriendlyByteBuf buf) {
-                return new BlackMessage(JsonParser.parseString(buf.readUtf()).getAsJsonObject());
-            }
-        }
 }
